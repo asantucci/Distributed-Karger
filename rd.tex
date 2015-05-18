@@ -1,0 +1,123 @@
+\documentclass[12pt]{article} 
+
+\usepackage{algorithm2e}
+\usepackage{amsthm}
+\usepackage{amsmath}
+
+\newtheorem{theorem}{Theorem}
+
+\begin{document} 
+
+\title{\textbf{Distributed Min Cut}}
+\author{Eric Lax, Andreas Santucci}
+\date{June 3rd, 2015}
+\maketitle
+
+\section*{Algorithm}
+
+Let $c$ denote the size of the true min cut of $G$. First, we are going to sample each edge with probability $p$. Let $G'$ be the sub-graph from sampling edges in $G$ with probability $p$. We are going to choose $p$ such that the expected sub-graph which emerges will be disconnected and fit on one machine. 
+
+Let us examine a simple fully connected graph with nodes $A, B, C, D$.  In $G'$, the probability that nodes $A$ and $B$ are disconnected from $B$ and $C$ is a function of the cut-size $AB$, defined as $\xi$. More precisely, the probability that they are disconnected in $G'$ equals $(1-p)^\xi$, since no edge that crosses that cut can be chosen to be in our sub-graph. The larger the cut, the less likely it is to be disconnected in $G'$. By definition, the min-cut is most likely to be disconnected. If we generate enough random sub-graphs $G'$, the cut which is most often disconnected will have size less than $(1+\epsilon) \cdot c$ with high probability.
+
+Let us define an $\alpha$ cut as a cut whose size is less than or equal to $\alpha c$. From (Karger 1993), the number of $\alpha$-cuts is less than $n^{2 \alpha}$. Let $f(\alpha)$ be the number of cuts of size $\alpha c$.
+
+Let $Z(\alpha) = \# \text{ times a cut of size } \alpha c \text{ is disconnected}$, $y = \# \text{ of iterations}$, and let $X$ denote the probability the min-cut is disconnected, which is given by $(1 - p)^c$. Let $\mu = E[Z(\alpha)] = yx^\alpha$.
+
+\begin{theorem} It's highly improbable that cuts of size $\alpha c$, for $\alpha \geq 3$, will be disconnected most often if we have more than $\frac{4}{\sqrt{2}} \cdot 2 \cdot 3 \cdot (1-\epsilon)^2 \ln{(n)}$ iterations.
+\end{theorem}
+
+\begin{proof}
+Recognize that $Z(1)$ is the number of times the min-cut is disconnected. Then, using a Chernoff bound, 
+
+\begin{align*}
+\Pr \bigg(Z(1) < (1-\epsilon) \mu \bigg) &\leq e^{(-\mu \epsilon^2)/2} \\
+&\leq e^{(-xy \epsilon^2)/2} \\
+\end{align*}
+
+If $y \geq \frac{1}{x} \ln(n) \cdot \frac{1}{2\epsilon^2}$, then $\Pr \bigg(Z(1) < (1-\epsilon)\mu \bigg) \leq e^{-\ln(n)} = n^{-1}$. So we may say this event is highly unlikely. 
+
+Let $\Pr(\alpha) = \Pr \bigg( Z(\alpha) > Z(1) \bigg)$. From (Karger 1993) the probability that any cut is disconnected more often than $Z(1)$ is simply given by the sum of $\sum_{\alpha} \Pr(\alpha) f(\alpha)$ where $f(\alpha)$ denotes the number of cuts of size $\alpha$. Define $F(x) = \sum_{\alpha \leq x} f(x)$, where $F(x) \leq n^{2x}$. Taking the worst case scenario where $F(x) = n^{2x}, \forall x$, we can further relax $F(x)$ to be a real-valued function rather than restricting it to the space of integers, in which case $f(a) = dF/d\alpha$, we can then take the integral
+
+\[
+\int_{1}^\infty \Pr(\alpha) \frac{dF}{d\alpha} d\alpha
+\]
+
+Since it is highly unlikely that $Z(1)$ is less than $(1-\epsilon)xy$, then $\Pr(\alpha) \leq \Pr \bigg(Z(\alpha) > (1-\epsilon)xy \bigg)$. We may upper bound the probability that a cut is more often disconnected than the min-cut. For $\alpha \geq 3$:
+
+\begin{align*}
+\Pr(Z > (1 - \epsilon)yx) &= \Pr(Z - \mu > (1 - \epsilon)yx - \mu) \\
+&\leq \Pr(|z-\mu| > (1-\epsilon)yx - yx^\alpha) \\
+&= \Pr \bigg(|z-\mu| > \mu ((1-\epsilon) x^{-(\alpha-1)}-1)\bigg) \\
+&\leq \exp \bigg[-yx^\alpha \bigg((1-\epsilon)yx^{-(\alpha-1)}-1\bigg)^2/3\bigg] \\
+&\approx \exp \bigg[-yx^\alpha \bigg((1-\epsilon)x^{-(\alpha - 1)}\bigg)^2/3\bigg] \\
+&= \exp \bigg[-y (1-\epsilon)^2 x^{-(\alpha-2)}/3\bigg]
+\end{align*}
+
+Now, let $y = \frac{4}{\sqrt{2}} \cdot 2 \cdot 3 \cdot (1-\epsilon)^2 \ln{(n)}$, then
+
+\begin{align*}
+&\int_{3}^\infty n^{2\alpha}\cdot \ln{(n^2)} \Pr(\alpha) d\alpha \\
+= &\int_{3}^\infty n^{2\alpha} \ln{(n^2)} \exp \bigg[-y x^{-\alpha + 2} \cdot (1-\epsilon)^2/3 \bigg] d\alpha \\
+= &\int_{3}^\infty n^{2\alpha} \ln{(n^2)} \exp \bigg[-\ln{n}\bigg(\frac{1}{(1-\epsilon)^2}\bigg) \cdot \frac{4}{\sqrt{2}} \cdot 6x^{-\alpha + 2} \frac{(1-\epsilon)^2}{3} \bigg] d\alpha \\
+= &\int_{3}^\infty n^{2\alpha} \ln{(n^2)} n^{-(\frac{4}{\sqrt{2}} \cdot 2x^{-\alpha + 2})} d\alpha \\
+= &\int_{3}^\infty n^{2 (\alpha - \frac{4}{\sqrt{2}} \cdot \frac{1}{x^{\alpha-2}})} \ln{(n)}  d\alpha \hspace{55pt} \text{We may non-problematically choose } x < \frac{1}{\sqrt{2}} \\
+\leq &\int_{3}^\infty n^{-2\alpha} \ln{(n^2)} d\alpha \\
+\leq &\frac{1}{n^6}
+\end{align*}
+\end{proof}
+
+So clearly for $\alpha \geq 3$, we can disregard the possibility that a cut of size $\alpha c$ is disconnected the most.
+
+\begin{theorem}
+For $\alpha < 3$, the probability that there exists a cut of size $\alpha$  such that $Z(\alpha) > (1+\epsilon) E[Z]$ is minimal. 
+\end{theorem}
+
+\begin{proof}
+Let $y = \frac{6 \ln(n)}{x^3 \epsilon^2}$. Define $\text{Pr}_1(\alpha) = \Pr(Z(\alpha) > (1+\epsilon) E[Z(\alpha)])$
+
+Using the logic from above, the probability the theorem holds for all $\alpha < 3$ is given by $\int_{1}^3 \text{Pr}_1(\alpha) \frac{dF}{d \alpha} d\alpha$
+
+\begin{align*}
+\text{Pr}_1(\alpha) = \Pr(z > \mu(1 + \epsilon)) = \exp \bigg[ -\mu \frac{\epsilon^2}{3}\bigg] = \exp \bigg[-y x^\alpha \cdot \frac{\epsilon^2}{3} \bigg]
+\end{align*}
+
+Now taking the integral, and plugging in for $y$ and $\frac{dF}{d \alpha}$, we get a value less than $\frac{1}{n}$.
+
+\begin{align*}
+\int_{1}^3 \text{Pr}_1(\alpha) \frac{dF}{d \alpha} d\alpha = \int_{1}^3 \exp \bigg[-y x^\alpha \cdot \frac{\epsilon^2}{3} \bigg] \frac{dF}{d \alpha} d\alpha &\leq \frac{1}{n}
+\end{align*}
+
+\end{proof}
+
+\begin{theorem}
+With high probability, the cut which is disconnected most frequently will have a cut size within $(1+\epsilon)$ of the true min-cut $c$. Let $y = \frac{6 \ln(n)}{x^3 (\epsilon/2)^2}$, and let $x = \frac{1}{e}$.
+\end{theorem}
+
+\begin{proof}
+By theorem 1 we can ignore the case when $\alpha \geq 3$. For $\alpha < 3$, we know from theorem 2 that it's highly probable that $Z(\alpha) < (1+\frac{\epsilon}{2})yx^\alpha$ (we divide $\epsilon$ by $2$ based on our choice for $y$).
+Similarly, we know that $Z(1) > (1-\frac{\epsilon}{2}) yx$ with high probability. Further, if $Z(\alpha) > Z(1)$, then it's highly probable that $yx^\alpha > (1-\epsilon) yx$, so solving for $\alpha$ we get $\alpha = 1 + \frac{\ln(1-\epsilon)}{\ln(x)}$. Substituting in for $x = \frac{1}{e}$ we see that $\alpha = 1 - \ln(1 - \epsilon) \approx 1+\epsilon$. Note that for lower values of $x$ the approximation is closer to $1$.
+\end{proof}
+
+\section*{Run Time Analysis}
+
+This algorithm consists of forming the sub-graphs, and applying a connected component analysis to each. (Karger) has an $O(n)$ sampling technique for generating sub-graphs. Similarly, connected component analysis is $O(d)$, where $d$ denotes the diameter of the largest connected component, which is worst case $O(n)$. So, each iteration of the algorithm is $O(n)$, therefore run-time is $O(yn) = O(n\log(n))$. Moreover, the algorithm is embarrassingly parallel, so in parallel the algorithm runs in $O(\frac{n \log(n)}{B})$, where $B$ denotes the number of machines in the cluster.
+
+\RestyleAlgo{boxruled}
+\LinesNumbered
+\begin{algorithm}
+\caption{Distributed Min Cut}
+Sample each edge with probability $p$ \\
+Put all sampled edges on one machine \\
+\SetKwProg{IP}{In Parallel}{:}{end}
+\IP{}
+{
+  Compute connected components on each machine's sub-graph \\
+  Return connected components \\
+}
+Count number of times each cut is disconnected \\
+Maximally occurring cut is highly likely to be a $1+\epsilon$ approximation of min cut
+\end{algorithm}
+
+
+
+\end{document}
