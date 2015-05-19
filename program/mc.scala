@@ -11,38 +11,37 @@ val mu = 2
 val sd = 1.5
 
 def min(a: (VertexId, Int), b: (VertexId, Int)): (VertexId, Int) = {
-  if (a._2 < b._2) a else b
+    if (a._2 < b._2) a else b
 }
 
-
-def paste(id: (VertexId, VertexId), l: List[VertexId]): List[VertexId] = {
-  l ++ List(id._2)
+def concatId(a: List[VertexId], b: List[VertexId]): List[VertexId] = {
+    a ++ b
 }
 
 // Option 1: Create (Cluster, Subgraph) RDD, map(CC)
 // Option 2: Iteratively: CC(create(Subgraph))
 
-val subGraph: Graph[Int, (Int, Int)]  // Degree, Edge Weight, Cluster
 //var G = GraphGenerators.rmatGraph(sc, N, M)
 var G = GraphGenerators.logNormalGraph(sc, N, mu, sd)
 
 // sample edges with probability 1/e --> 1/c, where c ~ max degree.
 // To Do: Check bounds of P (e.g. what if 1?)
 val p_est: Double = 1.0 / G.degrees.reduce(min)._2
-val bc = broadcast(p_est)
+val bc = sc.broadcast(p_est)
 
-def aggFun(a: List[VertexId], b: List[VertexId]): List[VertexId] = {
-  a ++ b
-}
-
+// Perform a Connected Components Analysis "on each machine"
+// To do this, generate B subgraphs, perform CC analysis,
+// keep track of cc's in subgraphs, and append to master RDD.
+var ccs: RDD[List[VertexId]] = sc.emptyRDD
 for (i <- 1 to B) {
   var cc = G.subgraph(epred = (e) => // Dislike making a whole variable
                       {scala.util.Random.nextFloat < bc.value })
             .connectedComponents
             .vertices
   cc.cache()
-  cc.aggregateUsingIndex(cc.map(pair => (pair._2, List(pair._1))),
-                         aggFun)
+  ccs = ccs.union(
+         cc.aggregateUsingIndex(cc.map(pair => (pair._2, List(pair._1))), concatId)
+           .map(p => p._2.sortWith(_ < _))) // can use(p._1, p._2.sortWith...) to track cc id.
 }
 
 vertices
