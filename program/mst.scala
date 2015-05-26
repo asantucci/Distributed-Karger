@@ -5,6 +5,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.graphx.PartitionStrategy
 import org.apache.spark.SparkContext._
 import org.apache.spark.graphx.GraphOps
+import scala.collection.mutable.ListBuffer
 //import scala.util.Sorting
 
 val N = 100
@@ -18,12 +19,6 @@ G.partitionBy(PartitionStrategy.EdgePartition2D) // Think!
 // Doesn't sorting require (max.deg log(max.deg)) time?
 //G.collectNeighborIds(EdgeDirection.Out)
 
-//G.edges.flatMap{e => e.map(e.srcId -> e.attr)}
-
-//case class EdgeWeight(dst: org.apache.spark.graphx.VertexId, wt: Int)
-//case class EdgeWeight(arr: Iterable[(org.apache.spark.graphx.VertexId, Int)]) {
-//  val edgeOrdering = Ordering.by {tuple => tuple._2}
-//}
 
 // Randomly weight edges.
 //G.edges.map{e => (e.srcId, e.dstId, (math.random*100).toInt)}
@@ -39,11 +34,13 @@ var g = G.edges
                     .take((math.log(N)/math.log(2)).toInt):_*)) // use of toList?
          .collect // send back to driver...
 
-//def remove(torm:      (org.apache.spark.graphx.VertexId, Int),
-//           list: List[(org.apache.spark.graphx.VertexId, Int)]) = 
-//  list diff List(torm)
-
-//var mst = new Array[(Edge[Int])]((math.log(N)/math.log(2)).toInt + 1) // truncation?
+var table = new ListBuffer[(List[org.apache.spark.graphx.VertexId],
+                           Int, List[Int])]
+var i = 0
+while (i < N) {
+  table += ((List(g(i)._1), 1, List(i)))
+  i += 1
+}
 
 var mst = new Array[(Edge[Int])](N-1)
 var cc  = 0
@@ -61,15 +58,4 @@ while (cc < N-1) {
   mst(cc) = new Edge(g(idx)._1, tmp._1, tmp._2)
   cc += 1
 }
-
-////////////////////
- .map{case (src, CompactBuffer(dst, wt)) => 
-      src -> _2.sortBy(_.wt)}
-
- .map{case (src, EdgeWeight) => src -> EdgeWeight.sortBy(._wt).take(3)}
- .map{case (src, EdgeWeight) => src -> 
-      EdgeWeight.toList.sortBy(_.wt).take(3)}
-
-G.edges.takeOrdered(Ordering.by([Edge[Int]])._attr)
-
 
