@@ -20,19 +20,22 @@ def concatId(a: List[VertexId], b: List[VertexId]): List[VertexId] = {
     a ++ b
 }
 
-class customPartitioner extends Partitioner {
-  def numPartitions = B
-  def getPartition(key: Any): Int = key.asInstanceOf[Int]
+class customPartitioner(n: Int) extends Partitioner {
+  def numPartitions = n
+  def getPartition(key: Any): Int = key.toString.toInt % n
   override def equals(other: Any): Boolean = 
     other.isInstanceOf[customPartitioner]
 }
+
+//def createSingleton(
+//def combineCC(
 
 var G = GraphGenerators.logNormalGraph(sc, N, mu, sd)
 
 // sample edges with probability 1/e --> 1/c, where c ~ max degree.
 // To Do: Check bounds of P (e.g. what if 1?)
 val p_est: Double = 1.0 / G.degrees.reduce(min)._2
-//val bc = sc.broadcast(p_est)
+val bc = sc.broadcast(p_est)
 val v  = sc.broadcast(G.vertices)
 
 var sampled_edges: RDD[(Int, Edge[Int])] = sc.emptyRDD
@@ -44,8 +47,15 @@ for (i <- 1 to B) {
                   )
 }
 
-sampled_edges = sampled_edges.partitionBy(new customPartitioner)
-sampled_edges.reduceByKey(
+sampled_edges = sampled_edges.partitionBy(new customPartitioner(B))
+
+//Idea: use accumulator??
+
+sampled_edges.reduceByKey(case (k, e) => Graph.fromEdges(sc.
+sampled_edges.groupByKey(p => new RDD[Edge] p)
+
+//sampled_edges.reduceByKey{case (k, e) => new Graph(v, e)}
+sampled_edges.reduceByKey{case (k, e) => Graph.fromEdges(new RDD[Edge], 1)}
 
 // 0. Broadcast vertices to all machines.
 // 1. Create a RDD with key=machine.no, val = edge
@@ -55,7 +65,9 @@ sampled_edges.reduceByKey(
 // Option 1: Create (Cluster, Subgraph) RDD, map(CC)
 // Option 2: Iteratively: CC(create(Subgraph))
 
-
+// The cut that is disconnected the most is (1+e) within C
+// We have counts for components.
+// The component which least likely occurs crosses the min cut.
 
 // Perform a Connected Components Analysis "on each machine"
 // To do this, generate B subgraphs, perform CC analysis,
@@ -72,6 +84,8 @@ for (i <- 1 to B) {
                                 concatId)
            .map(p => p._2.sortWith(_ < _))) // can use(p._1, p._2.sortWith...) to track cc id.
 }
+
+ccs.map{p => (p, 1)}.reduceByKey(_ + _)
 
 vertices
     .map(pair => (pair._2, List(pair._1)))
