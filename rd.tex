@@ -8,16 +8,184 @@
 
 \begin{document} 
 
-\title{\textbf{Distributed Min Cut}}
+\title{\textbf{Distributed MST and Min Cut}}
 \author{Eric Lax, Andreas Santucci}
 \date{June 3rd, 2015}
 \maketitle
 
-\section*{Algorithm}
+\section*{Overview}
+
+We set out to solve the problem of finding a min cut of a large graph $G$, where the number of vertices fits on a single machine but the number of edges does not. In this paper, we will briefly outline previous approaches to this problem, and then explore two avenues. 
+
+The first is a Karger variant, which finds the min cut with very high probability. To do this, we develop a distributed minimum spanning tree algorithm to simulate each iteration of Karger's algorithm. The run-time of finding the MST is $O(\frac{m \log(\log(n))}{B})$. The shuffle cost associated with finding MST is $O(n \log(n))$. In order to accomplish Karger's objective, this must be run $O(n^2 \log(n))$ times. 
+
+The second approach is an approximation algorithm based on the intuition that when sampling a graph $G$, the cut that is most likely to be disconnected is the min cut. We go through three different approaches to solving this problem, each with a different trade-off: one requires a higher communication cost, one requires a higher run-time, and one requires more machines.
+
+\begin{center}
+\begin{tabular}{ l | c | c }
+  Trade-Off & Run Time & Shuffle Cost \\
+\hline
+  Communication & 2 & 3 \\
+  Run Time & 5 & 6 \\
+  Machines & 8 & 9 \\
+\hline
+\end{tabular}
+\end{center}
+
+Below we will show that these approaches yield the fastest min cut approximation under the assumptions that $O(\frac{n\log(n)}{\epsilon^2})$ do not fit on a single machine. Moreover, even for small graphs, if $\epsilon$ is large enough, these approaches will perform at least as well as current approximation algorithms. Finally, we will explore further areas of research, including potential improvements to our algorithm from effective resistance, and applying the same methodology to the S-T min cut problem.
+
+\section*{Literature Review}
+
+\textbf{To do: citations}
+
+\paragraph{Karger} In David Karger's 1993 paper, ``Global Min-cuts in RNC and other Ramifications of a Simple Mincut algorithm'', he developed an $O(m n^2 \log(n))$ algorithm which finds the min cut with high probability. The algorithm repeatedly contracts edges at random until only one cut remains. This process is repeated $O(n^2 \log(n)$ times. It was later improved upon in the Karger-Stein algorithm \cite{Karger, David R; Stein, Clifford (1996). ``A new approach to the minimum cut problem''} to run in $O(n^2 \log^3(n))$ time.
+
+\paragraph{Skeleton Graphs} In his 1999 paper, ``Minimum Cuts in Near-Linear Time'', Karger develops a general methodology computing a skeleton graph, computing a tree packing on the resulting skeleton graph, and then calculating cut sizes determined by trees in the packing. This algorithm finds the min cut in $O(m \log^3(n))$ time.
+
+\paragraph{Random Sampling Techniques} In his 2000 paper, ``Random Sampling in Cut, Flow, and Network Design Problems'', Karger turns this approach into a $(1+\epsilon)$ approximation which runs in $O(m + n(\frac{\log(n)}{\epsilon})^3)$ time. This approach has been repeatedly adapted and improved upon. The most recent and best approximation algorithm we could find to date was published by Danupon Nanongkai and Hsin-Hao Su in a paper entitled, ``Almost-Tight Distributed Minimum Cut Algorithms'', which achieves a $(1 + \epsilon)$ approximation in $O((\sqrt{n} \log^*(n) + D) \epsilon^{-5} \log^3(n))$ time, where $D$ denotes the diameter of the graph, and $\log^*(n)$ denotes the iterated logarithm. Although the algorithm is a distributed method, it does not consider the cases where the skeleton graph does not fit on a single machine.
+
+\paragraph*{Karger Variants} In the 2011 paper, ``Filtering: A Method for Solving Graph Problems in MapReduce'', Lattanzi, Moseley, Suri, and Vassilvitskii is the only paper we were able to find which attempts to find min cuts for large graphs which don't fit on a single machine. \textbf{To do: run time analysis}. Their general approach is to arbitrarily weight edges in the range $(0,1)$, find a threshold $t \in (0,1)$ such that sampling all edges with weight less than $t$ results in a sub-graph small enough to fit on a single machine. They then apply Karger-Stein's algorithm. The problem with this approach is that a connected components analysis is simultaneously run for many values of $t$ to find the optimal value of $t$, leading both to extremely high communication cost and machine usage.
+
+\section*{Distributed Min Cut - Karger Variant}
+
+\paragraph{Parallel between MST} Each iteration of Karger's contraction algorithm repeatedly contracts edges until only one cut remains. Effectively, this is identical to arbitrarily weighting edges, finding a minimum spanning tree, and removing the highest weight edge. Notice, both algorithms randomly group connected edges with equal probability. We set out to model Karger's algorithm by first distributing MST. To do this, we use a variant of parallel Prim's under the assumption that each machine can store $O(n \log(n))$ information. \footnote{Even if we relax this assumption, the approach is still valid. There is a trade-off between the number of all to one communications, and the size of each communication. However, the total communication cost remains the same.}
+
+\RestyleAlgo{boxruled}
+\LinesNumbered
+\begin{algorithm}[H]
+\caption{Distributed Karger}
+\SetKwProg{Map}{Map}{:}{}
+\SetKwProg{Reduce}{Reduce}{:}{}
+\SetKwProg{Broadcast}{Broadcast}{:}{}
+\SetKwProg{Partition}{Partition}{:}{}
+\Partition{}{Place all edges for each node one a single machine}
+Set min-cut to $\infty$ \\
+\For{i = 1 to $n^2 \log(n)$} {
+  Assign arbitrary weights \\
+  Distributed MST \\
+  Remove maximum weighted edge (We now have a cut) \\
+  Perform Connected Components Analysis to determine how nodes are partitioned \\
+  Create a hash set for each side of the partition, containing the nodes on that side \\
+  \Map{}{
+    Across edges, check for edge between two partitions using the two hash-sets \\
+  }
+  \Reduce{} {
+    Return number of edges between two partitions
+  }
+  \If{smallest cut thus far} {
+    update min cut
+  }
+}
+Return min-cut
+\end{algorithm}
+
+Note that in order to analyze the run time, we must first examine how to distribute MST.
+
+\paragraph{Distributed MST}
+
+Due to the cut property of MST's, the lowest weight edge leaving each connected component must be contained in the minimum spanning tree. Prim's algorithm starts with each node as its own connected component, the lowest weight outgoing edge is found, and used to extend the connected component. Each iteration across all connected components reduces the number of connected components by at least $1/2$, therefore there are at most $\log(n)$ rounds required. 
+
+\textbf{To do: Cite Prim's}
+
+Our general approach is fairly simple. We first find the lowest weight $\log(n)$ edges leaving each vertex. Since in our Karger algorithm, edges are already partitioned such that all edges from a vertex are stored on a single machine. Using a binary heap-min data structure, we can find the lowest weight $\log(n)$ edges for each vertex $i$ in $\text{deg}(v_i) \log(\log(n))$ time. The total run time across all vertices is given by
+
+\[
+\frac{\sum_{i} \text{deg}(v_i) \log(\log(n))}{B} = \frac{2m \log(\log(n))}{B}
+\]
+
+Therefore the run time is $O(\frac{m \log(\log(n))}{B})$.
+
+We then perform an all-to-one communication and send the results back to the driver, with shuffle size $O(n \log(n))$. The driver then checks for the lowest weight edge leaving each connected component. In order to do this, the driver simply checks the lowest weight edge leaving each node, meaning the driver will check $n$ nodes. Since the $\log(n)$ edges are already sorted, each node can be checked in constant time, so this takes a total $O(n)$ time each iteration. There are a total of $\log(n)$ iterations, since each iteration reduces the number of connected components by a factor of at least two. 
+
+\paragraph{Caveat} 
+
+Note, however, that we must also deal with the case where all $\log(n)$ edges leaving a single node are exhausted in the search for an MST, but we have more than one connected component remaining. It is then possible that the minimum weight edge leaving that connected component does not reside within the driver. Therefore, we no longer attempt to augment this connected component with any of the remaining outgoing edges from other nodes within the connected component. If this becomes true of all our connected components, we can no longer add edges to reduce the number of components. 
+
+This is very unlikely, and will not occur for most graphs. Notice that in order for this to happen, our smallest connected component would have to be of size at least $\log(n)$ (probably much larger). However, if this event does occur, we repeat the process described above. 
+
+Since each connected component is at least size $\log(n)$, there are at most $n/ \log(n)$ connected components; the driver can fit $\log(n)^2$ edges leaving each connected component, since $n/\log(n) \cdot \log(n)^2 = n \log(n)$. The size of the broadcast is $n$, since all we need to know is which connected component contains each node. So we may broadcast the list of connected components back to all machines. 
+
+We repeat the process above, considering the lowest weight $\log(n)^{2}$ edges leaving each connected component. The results are sent back to the driver, with a shuffle size of $n \log (n)$. Notice that the smallest connected component we could have before running out of outgoing edges on this iteration would be of size $\log(n) \cdot \log(n)^2$. So, if we were to run this again, the driver could hold $\log(n)^4$ outgoing edges for each connected component.
+
+In the worst case, the number of iterations performed for this process is given by $\log(n)^{2^x} \geq n$, such we that have removed at least $n-1$ connected components. We then have
+
+\[
+x = \log \bigg( \frac{\log(n)}{\log(\log(n))}\bigg)
+\]
+
+This is the worst case scenario. Suppose $n$ is on the order of 1 trillion, we only need on the order of $x=3$ iterations.
+
+\textbf{To do: explain that we send back log n edges from each vertex in each iteration. Ensure congruence between algorithm and run time analysis}
+
+Note that since we don't want to incur the shuffle size of computing the lowest weight edge leaving each connected component when the edges for a connected component are split across each machine, we can simply find the next lowest $\log(n)$ edges leaving each vertex. 
+
+\RestyleAlgo{boxruled}
+\LinesNumbered
+\begin{algorithm}[H]
+\caption{Distributed MST}
+\SetKwProg{Map}{Map}{:}{}
+\SetKwProg{Reduce}{Reduce}{:}{}
+\SetKwProg{Broadcast}{Broadcast}{:}{}
+\SetKwProg{Partition}{Partition}{:}{}
+Set each node as a connected component \\
+Assign arbitrary weights to all edges (uniformly at random) \\
+Set $i = 0$ \\
+\While{Edges exist leaving connected components} {
+  \If{$i > 0$} {
+    \Broadcast{}{Connected Components to all machines}
+  }
+  \Map{}{
+    Across each connected components: Search for lowest $log(n)^{2^i}$
+    weight edges leaving \emph{each} connected component
+  }
+  Send lowest weight $\log(n)^{2^i}$ results back to driver \\
+  \While{True} {
+    \If{One connected component remains \textbf{Or} At least one 
+    node in each connected component has exhausted all $\log(n)^{2^i}$ edges} {
+    break
+    }
+    \For{Each Connected Component such that none of the nodes have exhausted all $\log(n)^{2^i}$ outgoing edges} {
+      Take minimum edge leaving component and use this to merge two
+      components
+    }
+  }
+  i += 1
+}
+Return MST
+\end{algorithm}
+
+\paragraph{Run Time Analysis - Distributed MST}
+
+Computing the minimum spanning tree first requires finding the lowest weight $\log(n)$ edges leaving each vertex. To do this, we use a binary-heap data structure, taking $O(\frac{m\log(\log(n))}{B})$ time. Computing the MST on the driver takes $O(n \log(n))$ time. The total run time is given by $O(\frac{m \log(\log(n))}{B} + n\log(n))$.
+
+\paragraph{Shuffle Size - Distributed MST}
+
+The algorithm only uses one all to one communication, since the edges have already been partitioned as a first step in the variant of Karger's algorithm. For each node, the lowest weight $\log(n)$ edges are sent back, so on the first iteration the shuffle cost is given by $O(n\log(n))$. In the worst case, the total shuffle size across iterations is given by $O(n (\frac{\log^2(n)}{\log(\log(n))}))$.
+
+\paragraph{Run Time Analysis - Karger Variant}
+
+Notice that in the algorithm, after weighting edges randomly and finding an MST, the largest weight edge is removed and connected components analysis is performed to determine how nodes are partitioned across the cut. The connected components analysis is $O(n)$ since there are $O(n)$ edges, and can be performed using a simple Prim's algorithm. While performign connected components analysis, we accumulate a hash-set of nodes stored in each side of the partition. We then map across edges, checking to see if the edge spans the cut. Using the hash-set, each edge requires a constant time check, so the total cost when computed in parallel is given by $O(m/B)$.
+
+Since computing MST is the bottleneck, and since we need $n^2 \log(n)$ iterations to run Karger, the total run-time is given by \\
+$O((n^2 \log(n)) (\frac{m \log(\log(n))}{B} + n \log(n)))$. Note that for $B \geq \log(\log(n))$, this is faster than Karger's algorithm.
+
+\paragraph{Shuffle Size - Karger Variant}
+
+We have an all to all communication required by partitioning edges. The cost of this operation is $O(m)$. We also shuffle the lowest weight $\log(n)$ edges from each node, which is an all to one communication of size $n \log(n)$. The map-reduce to get the size of each cut is an all to one communication of size $O(B)$, since each machine simply returns the number of edges crossing each cut.
+
+Both these operations are performed $n^2\log(n)$ times, so the total shuffle cost is given by $O(n^2\log(n) (n \log(n)))$. 
+
+\paragraph{Limitations in Scaling}
+
+Note that we require that each machine can store at least $O(n)$ information, so for graphs large enough, this becomes a problem.
+
+\paragraph{How strongly does Algorithm scale} Although this algorithm beats Karger under certain conditions, it is far from optimal. Even with a large number of machines, we still have a $n\log(n)$ term incurred from MST, and we require $n^2 \log(n)$ iterations. As the number of machines grow drastically, it would be possible to adopt a version of parallel Prim's that would result in faster run time at the expense of increased shuffle size.
+
+\section*{Distributed Min Cut Approximation Algorithm}
 
 Let $c$ denote the size of the true min cut of $G$. First, we are going to sample each edge with probability $p$. Let $G'$ be the sub-graph from sampling edges in $G$ with probability $p$. We are going to choose $p$ such that the expected sub-graph which emerges will be disconnected and fit on one machine. 
 
-Let us examine a simple fully connected graph with nodes $A, B, C, D$.  In $G'$, the probability that nodes $A$ and $B$ are disconnected from $B$ and $C$ is a function of the cut-size $AB$, defined as $\xi$. More precisely, the probability that they are disconnected in $G'$ equals $(1-p)^\xi$, since no edge that crosses that cut can be chosen to be in our sub-graph. The larger the cut, the less likely it is to be disconnected in $G'$. By definition, the min-cut is most likely to be disconnected. If we generate enough random sub-graphs $G'$, the cut which is most often disconnected will have size less than $(1+\epsilon) \cdot c$ with high probability.
+Let us examine a simple fully connected graph with nodes $A, B, C, D$.  In $G'$, the probability that nodes $A$ and $B$ are disconnected from $C$ and $D$ is a function of the cut-size $AB$, defined as $\xi$. More precisely, the probability that they are disconnected in $G'$ equals $(1-p)^\xi$, since no edge that crosses that cut can be chosen to be in our sub-graph. The larger the cut, the less likely it is to be disconnected in $G'$. By definition, the min-cut is most likely to be disconnected. If we generate enough random sub-graphs $G'$, the cut which is most often disconnected will have size less than $(1+\epsilon) \cdot c$ with high probability.
 
 Let us define an $\alpha$ cut as a cut whose size is less than or equal to $\alpha c$. From (Karger 1993), the number of $\alpha$-cuts is less than $n^{2 \alpha}$. Let $f(\alpha)$ be the number of cuts of size $\alpha c$.
 
@@ -98,25 +266,83 @@ By theorem 1 we can ignore the case when $\alpha \geq 3$. For $\alpha < 3$, we k
 Similarly, we know that $Z(1) > (1-\frac{\epsilon}{2}) yx$ with high probability. Further, if $Z(\alpha) > Z(1)$, then it's highly probable that $yx^\alpha > (1-\epsilon) yx$, so solving for $\alpha$ we get $\alpha = 1 + \frac{\ln(1-\epsilon)}{\ln(x)}$. Substituting in for $x = \frac{1}{e}$ we see that $\alpha = 1 - \ln(1 - \epsilon) \approx 1+\epsilon$. Note that for lower values of $x$ the approximation is closer to $1$.
 \end{proof}
 
-\section*{Run Time Analysis}
+\section*{Binary Search}
 
-This algorithm consists of forming the sub-graphs, and applying a connected component analysis to each. (Karger) has an $O(n)$ sampling technique for generating sub-graphs. Similarly, connected component analysis is $O(d)$, where $d$ denotes the diameter of the largest connected component, which is worst case $O(n)$. So, each iteration of the algorithm is $O(n)$, therefore run-time is $O(yn) = O(n\log(n))$. Moreover, the algorithm is embarrassingly parallel, so in parallel the algorithm runs in $O(\frac{n \log(n)}{B})$, where $B$ denotes the number of machines in the cluster.
+When sampling sub-graphs from $G$, we want the expected number of components to be less than or equal to $\log(n)$, such that when counting the cuts between connected components, i.e. disconnected cuts, a full enumeration is $2^{\log(n)} = O(n)$. We seek to perform a binary search to find optimal $p$ such that in expectation at least half of the time we sample $G'$, we produce less than or equal to $\log(n)$ connected components. We can take some constant number of samples and run connected components to get a sense of the expected number of connected components. Start with some initial $p_1 = \frac{1}{\delta}$, where $\delta$ denotes the min degree of the graph. Sample edges with probability $p_1$ to yield graph $G'_1$, run connected components, count number of connected components. Repeat $x$ times, where $x$ defined as above. Then average the counts of connected components across $x$ iterations to yield an estimate for the expected number of connected components. If greater than $\log(n)$, guess again $p_2 = \frac{1}{2} \cdot p_1$. If expected number is more than 1 and less than $\log(n)$, we're done. Else, equal to 1, then $p_2 = 2 \cdot p_1$. Repeat as necessary. Maximally $\log(n)$ iterations, so run time is $O(n \log (n))$. Note: in order to parallelize this, we may run $p_1, \frac{1}{2}p_1, \frac{1}{4}p_1$ until we run out of machines under the assumption that our initial guess yields more than $\log(n)$ connected components in expectation. The required number of iterations is then $O(\frac{\log(n)}{B})$.
 
 \RestyleAlgo{boxruled}
 \LinesNumbered
-\begin{algorithm}
+\begin{algorithm}[H]
 \caption{Distributed Min Cut}
+Binary Search for optimal $p$ \\
 Sample each edge with probability $p$ \\
-Put all sampled edges on one machine \\
 \SetKwProg{IP}{In Parallel}{:}{end}
 \IP{}
 {
-  Compute connected components on each machine's sub-graph \\
+  Compute connected components on sub-graph \\
   Return connected components \\
 }
 Count number of times each cut is disconnected \\
 Maximally occurring cut is highly likely to be a $1+\epsilon$ approximation of min cut
 \end{algorithm}
+
+\section*{Run Time Analysis}
+
+This algorithm consists of forming the sub-graphs, and applying a connected component analysis to each.
+
+\paragraph{High Communication Cost}
+
+
+
+\paragraph{High Run Time}
+
+\paragraph{Large Number of Processors}
+
+
+
+
+ (Karger) has an $O(n)$ sampling technique for generating sub-graphs. Similarly, connected component analysis is $O(d)$, where $d$ denotes the diameter of the largest connected component, which is worst case $O(n)$. So, each iteration of the algorithm is $O(n)$, therefore run-time is $O(yn) = O(n\log(n))$. Moreover, the algorithm is embarrassingly parallel, so in parallel the algorithm runs in $O(\frac{n \log(n)}{B})$, where $B$ denotes the number of machines in the cluster. See the section on \textbf{Counting} for how line 7 is performed.
+
+
+\section*{Counting}
+
+\paragraph{Run Time Analysis}
+We assume the driver can store $O(n^2)$ information. Enumerating all pairwise combinations of nodes requires $\binom{n}{2} = O(n^2)$ operations. Incrementing the counts is also upper bounded by $n^2$. Similarly, the reduce step is upper bounded by $n^2$. Lastly, finding the min-cut in the last while loop is also trivially upper-bounded by $n^2$. The run-time for this algorithm is therefore $O(n^2)$.
+
+Assume the connected components are stored locally across a set of $B$ machines. We first require an all-to-one communication of size $O(Bn^2)$, since the map is updated locally, the results are then sent back in a Reduce step to the driver. The rest of the operations are performed locally on the driver.
+
+\paragraph{Algorithm}
+
+\RestyleAlgo{boxruled}
+\LinesNumbered
+\begin{algorithm}
+\caption{Counting Algorithm}
+Create an ordered map, where the key is one of all possible pairwise combinations of nodes, and the ordering is determined by value \\
+Set each value of the map to 0 \\
+Take in a list of connected components \\
+\Map
+\For{each connected component} {
+  \For{each pairwise combination of nodes in the component} {
+    Increment the count of the corresponding entry in the map by 1
+  }
+}
+\Reduce{}{
+  Sum up counts
+}
+Send results back to driver
+Create one empty set which will store all nodes visited \\
+Created two more empty sets which will store nodes according to which side of the min-cut they belong \\
+\While{master set does not contain all $n$ nodes} {
+  Starting with the lowest values in the map, examine key of each entry, determine which side of the min-cut the nodes fall under \\
+  Assign nodes accordingly \\ 
+}
+Return one side of the min-cut.
+\end{algorithm}
+
+
+\newpage
+
+\section*{ST Min-Cut}
 
 
 
