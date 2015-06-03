@@ -1,3 +1,9 @@
+/* Andreas Santucci
+ * ----------------
+ * CME 323 - Distributed Algorithms and Optimization
+ * Distributed Karger
+ */
+
 :load ../../../project/program/mst_low_runtime.scala
 import scala.util.Random
 import org.apache.spark.graphx.GraphOps
