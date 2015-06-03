@@ -1,8 +1,8 @@
 /* Authors: Andreas Santucci, Eric Lax
  * Algorithm: Distributed Karger
  * -----------------------------------
- * CME 323 - Distributed Algorithms and Optimization
- * June 3rd, 2015
+ * This file defines a distributed version
+ * of Karger's min-cut algorithm.
  */
 
 :load ../../../project/program/mst_low_runtime.scala
