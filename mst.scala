@@ -12,7 +12,7 @@
  * Citation: https://github.com/s-ramaswamy/CME-323-project 
  */
 
-:load ../../../project/program/disjoint_sets.scala
+:load ../../../project/program/disjoint_sets.scala  // Source code contained in citation above.
 
 import org.apache.spark.graphx.util.GraphGenerators
 import org.apache.spark.graphx.{VertexId, Edge, Graph}

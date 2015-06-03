@@ -1,7 +1,8 @@
-/* Andreas Santucci
- * ----------------
+/* Authors: Andreas Santucci, Eric Lax
+ * Algorithm: Distributed Karger
+ * -----------------------------------
  * CME 323 - Distributed Algorithms and Optimization
- * Distributed Karger
+ * June 3rd, 2015
  */
 
 :load ../../../project/program/mst_low_runtime.scala
