@@ -24,19 +24,6 @@ def get_cut_size(edge: Edge[Int],
   return 0
 }
 
-/* Function: get_cut
- * -----------------
- * Given a Graph and an edge, this function computes
- * the number of edges crossing the cut.
- * Question: map across edges in G or MST?
- */
-
-// Create a graph, G.
-val E = readEdges("../../../project/program/graphs/barbell_edges.txt")
-val V = readVertices("../../../project/program/graphs/barbell_vertices.txt")
-val G = Graph(V, E)
-
-
 /* Function: min_cut_karger
  * ------------------------
  * min_cut_approximation algorithm. Runs O(n^2 lg(n)) iterations
