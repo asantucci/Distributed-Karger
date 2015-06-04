@@ -1,10 +1,3 @@
-/* Authors: Andreas Santucci, Eric Lax
- * Algorithm: Distributed Karger
- * -----------------------------------
- * This file defines a distributed version
- * of Karger's min-cut algorithm.
- */
-
 :load ../../../project/program/mst_low_runtime.scala
 import scala.util.Random
 import org.apache.spark.graphx.GraphOps
@@ -25,10 +18,8 @@ def max_weight(e1: Edge[Int], e2: Edge[Int]): Edge[Int] = {
  * a cut. If it does, the function emits 1, else 0.
  */
 def get_cut_size(edge: Edge[Int],
-                 ccs: Map[VertexId, VertexId],
-                 max_weight: Edge[Int]): Int = {
-  if (edge != max_weight && 
-      ccs(edge.srcId) != ccs(edge.dstId))
+                 ccs: Map[VertexId, VertexId]): Int = {
+  if (ccs(edge.srcId) != ccs(edge.dstId))
     return 1
   return 0
 }
@@ -41,8 +32,8 @@ def get_cut_size(edge: Edge[Int],
  */
 
 // Create a graph, G.
-val E = readEdges("../../../project/program/graphs/cycle_edges.txt")
-val V = readVertices("../../../project/program/graphs/cycle_vertices.txt")
+val E = readEdges("../../../project/program/graphs/barbell_edges.txt")
+val V = readVertices("../../../project/program/graphs/barbell_vertices.txt")
 val G = Graph(V, E)
 
 
@@ -67,12 +58,14 @@ def min_cut_karger(G: Graph[Int, Int]): Double = {
     val arb_weights = G.edges.map{e => 
       val weight = new Random;
       Edge(e.srcId, e.dstId, weight.nextInt(Int.MaxValue))}
-    arb_weights.cache()  // Used to evaluate and save randomly generated weights.
+    arb_weights.cache()  // Used to save randomly generated weights.
     val G_arb = Graph(G.vertices, arb_weights)
     val (mst, cc) = findMST(G_arb)
     val maxw = arb_weights.reduce(max_weight)
     val G_contract = new GraphOps(Graph(G.vertices, 
-                                        G.edges.filter{e => e != maxw}))
+                                        G.edges.filter{e =>
+                                        e.srcId != maxw.srcId &&
+                                        e.dstId != maxw.dstId}))
     val cc_contract = G_contract.connectedComponents.
                                  vertices.
                                  map{v => v._1 -> v._2}.
@@ -81,10 +74,10 @@ def min_cut_karger(G: Graph[Int, Int]): Double = {
     val cc_bc = sc.broadcast(cc_contract)
     val maxw_bc = sc.broadcast(maxw)
     val tmp_cut = G.edges.
-                    map{get_cut_size(_, cc_bc.value, maxw_bc.value)}.
+                    map{get_cut_size(_, cc_bc.value)}.
                     reduce(_ + _)
                   
-    if (tmp_cut < min_cut) 
+    if (tmp_cut < min_cut)
       min_cut = tmp_cut
   }
 
