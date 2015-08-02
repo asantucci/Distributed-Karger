@@ -259,7 +259,7 @@ Recognize that $Z(1)$ is the number of times the min-cut is disconnected. Then, 
 
 If $y \geq \frac{1}{x} \ln(n) \cdot \frac{1}{2\epsilon^2}$, then $\Pr \bigg(Z(1) < (1-\epsilon)\mu \bigg) \leq e^{-\ln(n)} = n^{-1}$. So we may say this event is highly unlikely. 
 
-Let $\Pr(\alpha) = \Pr \bigg( Z(\alpha) > Z(1) \bigg)$. From Karger\cite{Karger} the probability that any cut is disconnected more often than $Z(1)$ is simply given by the sum of $\sum_{\alpha} \Pr(\alpha) f(\alpha)$. Define $F(x) = \sum_{\alpha \leq x} f(x)$, where $F(x) \leq n^{2x}$. Taking the worst case scenario where $F(x) = n^{2x}, \forall x$, we can further relax $F(x)$ to be a real-valued function rather than restricting it to the space of integers, in which case $f(a) = dF/d\alpha$, we can then take the integral
+Let $\Pr(\alpha) = \Pr \bigg( Z(\alpha) > Z(1) \bigg)$. From Karger\cite{Karger} the probability that any cut is disconnected more often than $Z(1)$ is simply given by the sum of $\sum_{\alpha} \Pr(\alpha) f(\alpha)$. Define $F(x) = \sum_{\alpha \leq x} f(x)$, where $F(x) \leq n^{2x}$. Taking the worst case scenario where $F(x) = n^{2x}, \forall x$, we can further relax $F(x)$ to be a real-valued function rather than restricting it to the space of integers, in which case $f(\alpha) = dF/d\alpha$, we can then take the integral
 
 \[
 \int_{1}^\infty \Pr(\alpha) \frac{dF}{d\alpha} d\alpha
@@ -268,9 +268,9 @@ Let $\Pr(\alpha) = \Pr \bigg( Z(\alpha) > Z(1) \bigg)$. From Karger\cite{Karger}
 Since it is highly unlikely that $Z(1)$ is less than $(1-\epsilon)xy$, then $\Pr(\alpha) \leq \Pr \bigg(Z(\alpha) > (1-\epsilon)xy \bigg)$. We may upper bound the probability that a cut is more often disconnected than the min-cut. For $\alpha \geq 3$:
 
 \begin{align*}
-\Pr(Z > (1 - \epsilon)yx) &= \Pr(Z - \mu > (1 - \epsilon)yx - \mu) \\
-&\leq \Pr(|z-\mu| > (1-\epsilon)yx - yx^\alpha) \\
-&= \Pr \bigg(|z-\mu| > \mu ((1-\epsilon) x^{-(\alpha-1)}-1)\bigg) \\
+\Pr(Z(\alpha) > (1 - \epsilon)yx) &= \Pr(Z(\alpha) - \mu > (1 - \epsilon)yx - \mu) \\
+&\leq \Pr(|Z(\alpha)-\mu| > (1-\epsilon)yx - yx^\alpha) \\
+&= \Pr \bigg(|Z(\alpha)-\mu| > \mu ((1-\epsilon) x^{-(\alpha-1)}-1)\bigg) \\
 &\leq \exp \bigg[-yx^\alpha \bigg((1-\epsilon)yx^{-(\alpha-1)}-1\bigg)^2/3\bigg] \\
 &\approx \exp \bigg[-yx^\alpha \bigg((1-\epsilon)x^{-(\alpha - 1)}\bigg)^2/3\bigg] \\
 &= \exp \bigg[-y (1-\epsilon)^2 x^{-(\alpha-2)}/3\bigg]
@@ -492,7 +492,7 @@ Finally, the same approach generalizes to ST Min-Cut, if we can find a way to gu
 \bibitem{Almost-Tight}
   Danupon Nanongkai, Hsin-Hao Su
   \emph{Almost-Tight Distributed Minimum Cut Algorithms}
-  1999.
+  2014.
 
 \bibitem{Random-Sampling}
   David R. Karger
