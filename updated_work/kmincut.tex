@@ -1,0 +1,189 @@
+\documentclass[12pt]{article} 
+
+\usepackage{algorithm2e}
+\usepackage{amsthm}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage[backref]{hyperref}
+\newtheorem{theorem}{Theorem}
+
+\begin{document} 
+
+\title{\textbf{K Min Cut Approximation}}
+\author{Eric Lax, Andreas Santucci}
+\maketitle
+
+Our algorithm for minimal $k$-cut follows the same form as our approximation algorithm for min-cut. We note that if we sample each edge in an un-weighted graph with probability $p$, the probability that a cut is disconnected, meaning that no edges which span the cut exist the sub-graph, occurs with probability $(1-p)^{\text{cut size}}$ Let $\alpha \lambda_k$ denote the cut size where $\lambda_k$ is the minimal $k$-cut. Further, let an $\alpha_k$ cut refer to a $k$-cut whose size is less than or equal to $\alpha \lambda_k$. 
+
+Notice the smaller the cut, the larger the probability that it is disconnected. We prove below that if we sample $\log(n)/\epsilon^2$ sub-graphs,  the cut which is disconnected the most is $1+\epsilon$ approximation of the min $k$-cut.
+
+Our algorithm proceeds as follows. Start with a binary search for a $p$ such that when sampling sub-graphs with $p$, the number of connected components are between $[k, \log_k(n k!)]$ a constant proportion of the time. With this $p$, sample $O(\log(n)/\epsilon^2)$ sub-graphs. For each sub-graph, count all disconnected $k$-cuts. Return the $k$-cut which is disconnected the most.
+
+\section{Binary Search} Enumerating all $k$-cuts given a sub-graph with $\xi$ connected components costs $\left \{ \overset{\xi}{k} \right \} = \frac{1}{k!} \sum_{j=0}^k (-1)^{k-j} \binom{k}{j} j^\xi$, which denotes the Stirling number of the second kind. For a fixed value of $k$, the asymptotic value of the Stirling numbers of the second kind is given by $\frac{k^\xi}{k!}$. Since we want the enumeration cost to $O(m)$, we require the number of connected components to satisfy
+
+\begin{align*}
+\frac{k^\xi}{k!} &\leq m \\
+\xi &\leq \log_k(m k!) 
+\end{align*}
+
+In performing binary search, we seek to find $p$ such that a constant proportion of the time, the number of connected components 
+$[k, \log_k(m k!)]$. Notice that for high $k$ such that 
+$k > \log_k(mk!)$, this is impossible, and thus the enumeration becomes the bottleneck in our algorithm. This will be dealt with in our run-time analysis.
+
+All proofs follow directly from our approximation algorithm for a minimal cut, conditional on $\theta$ denoting the probability that $\xi \in [k, \log_k(mk!)]$, $\theta_{\uparrow}$ denotes the probability that $\xi < k$, and $\theta_{\downarrow}$ denotes the probability that $\xi > \log_k(mk!)$. The rest of the proof remains the same.
+
+\section{Sampling} The proof used in our min-cut approximation algorithm relies on the fact that the number of $\alpha$-cuts is less than $n^{2 \alpha}$. 
+
+\begin{theorem}
+We claim that the number of $\alpha k$-cuts is less than or equal to
+\[
+\frac{(kn)^{2 \alpha k}}{k!}.
+\]
+\end{theorem}
+
+\begin{proof}
+We will follow the same outline that Karger-Stein used to prove that the number of $\alpha$ cuts is less than or equal to $n^{2 \alpha}$. We will examine the problem in the context of a contraction algorithm. In each state, an edge is randomly selected and contracted, effectively reducing the number of vertices by one, where self-loops are removed. The probability of contracting an edge contained in an $\alpha_k$ cut during the first iteration of Karger is given by
+
+\[
+\frac{\alpha \lambda_k}{|E|} = \frac{\alpha \lambda_k}{\frac{1}{2} \sum_{i=1}^n \text{deg}(i)}
+\]
+
+Notice that the average degree size is at least $\frac{\lambda_k}{k-1}$, because $\lambda_k$ is upper bounded by the sum of the $k-1$ smallest vertex degrees. Therefore, the above equation is bounded above by:
+
+\[
+\frac{\alpha \lambda_k}{|E|} \leq \frac{\alpha \lambda_k}{\frac{1}{2} \sum_{i=1}^n \frac{\lambda_k}{k}} = \frac{2 \alpha k}{n}
+\]
+
+The probability that an edge contained within an $\alpha k$-cut is not contracted over when sampling down to $2 \alpha k$ vertices is simply 
+
+\[
+\left (1 - \frac{2 \alpha k}{n} \right) \left(1 - \frac{2 \alpha k}{n-1} \right) \ldots \left( 1 - \frac{2 \alpha k}{2 \alpha k + 1}\right) = \binom{n}{2 \alpha k}^{-1} \approx n^{2 \alpha k}
+\]
+
+We can sample down to $k$ vertices simply by partitioning the 
+$2 \alpha k$ remaining vertices into $k$ groups. The number of ways to do this is given by the Stirling number of the second kind. The probability that an edge within the $\alpha k$ cut is contracted during this stage is given by
+
+\[
+\frac{1}{ \left \{ \overset{2 \alpha k }{k} \right \}} \approx \left( \frac{k^{2 \alpha k}}{k!} \right)^{-1}
+\]
+
+Following this contraction algorithm, the probability an edge contained within the $\alpha k$ cut remains when there are only $k$ vertices left is given by
+
+\[
+\frac{k!}{(nk)^{2 \alpha k}}
+\]
+
+Since this algorithm only outputs one $k$-cut per series of contractions, the ``survival of different cuts are disjoint events'' [Karger ``A New Approach'']. Therefore, the probability that this algorithm produces a $\alpha_k$ cut is simply
+
+\[
+\sum_{i=1}^{\text{\# of } \alpha_k \text{ cuts}} \Pr(\alpha_{k,i} \text{ is output}) \leq 1
+\]
+
+Therefore, 
+
+\[
+\sum_{i=1}^{\text{\# of } \alpha_k \text{ cuts}} \frac{k!}{(nk)^{2 \alpha k}} \leq 1 \implies \text{\# of } \alpha_k \text{ cuts} \leq \frac{(nk)^{2 \alpha k}}{k!}
+\]
+
+\end{proof}
+
+
+
+\section{Distributed Minimal k-Cut}
+
+Let $f(\alpha_k)$ be the number of cuts of size $\alpha \lambda_k$. Let $Z(\alpha_k) = \# \text{ times a } k$ -cut of size 
+$\alpha \lambda_k \text{ is disconnected}$, $y = \# \text{ of iterations}$, and let $x$ denote the probability the minimal k-cut is disconnected, which is given by $(1 - p)^{\lambda_k}$. Let $\mu = E[Z(\alpha_k)] = y(1-p)^{\alpha \lambda_k} = yx^{\alpha_k}$.
+
+\begin{theorem} It's highly improbable that cuts of size $\alpha c$, for $\alpha \geq 3$, will be disconnected most often if we have more than $\frac{4}{\sqrt{2}} \cdot 2 \cdot 3 \cdot (1-\epsilon)^2 \ln{(nk)} \cdot k$ iterations.
+\end{theorem}
+
+\begin{proof}
+Recognize that $Z(1_k)$ is the number of times the minimal k-cut is disconnected. Then, using a Chernoff bound, 
+
+\begin{align*}
+\Pr \bigg(Z(1_k) < (1-\epsilon) \mu \bigg) &\leq e^{(-\mu \epsilon^2)/2} \\
+&\leq e^{(-xy \epsilon^2)/2} \\
+\end{align*}
+
+If $y \geq \frac{1}{x} \ln(n) \cdot \frac{1}{2\epsilon^2}$, then $\Pr \bigg(Z(1_k) < (1-\epsilon)\mu \bigg) \leq e^{-\ln(n)} = n^{-1}$. So we may say this event is highly unlikely. 
+
+Let $\Pr(\alpha_k) = \Pr \bigg( Z(\alpha_k) > Z(1_k) \bigg)$. From Karger [Karger citation] the probability that any cut is disconnected more often than $Z(1_k)$ is simply given by the sum of $\sum_{\alpha_k} \Pr(\alpha_k) f(\alpha_k)$. Define $F(x) = \sum_{\alpha \leq x} f(x)$, where $F(x) \leq \frac{(nk)^{2 xk}}{k!} \leq (nk)^{2xk}$. Taking the worst case scenario where $F(x) = (nk)^{2xk}, \forall x$, we can further relax $F(x)$ to be a real-valued function rather than restricting it to the space of integers, in which case $f(\alpha_k) = dF/d \alpha_k$, we can then take the integral
+
+\[
+\int_{1}^\infty \Pr(\alpha_k) \frac{dF}{d\alpha_k} d\alpha_k
+\]
+
+Since it is highly unlikely that $Z(1_k)$ is less than $(1-\epsilon)xy$, then $\Pr(\alpha_k) \leq \Pr \bigg(Z(\alpha_k) > (1-\epsilon)xy \bigg)$. We may upper bound the probability that a cut is more often disconnected than the min-cut. For $\alpha_k \geq 3$:
+
+\begin{align*}
+\Pr(Z(\alpha_k) > (1 - \epsilon)yx) &= \Pr(Z(\alpha_k) - \mu > (1 - \epsilon)yx - \mu) \\
+&\leq \Pr(|Z(\alpha_k)-\mu| > (1-\epsilon)yx - yx^\alpha_k) \\
+&= \Pr \bigg(|Z(\alpha_k)-\mu| > \mu ((1-\epsilon) x^{-(\alpha_k-1)}-1)\bigg) \\
+&\leq \exp \bigg[-yx^\alpha_k \bigg((1-\epsilon)yx^{-(\alpha_k-1)}-1\bigg)^2/3\bigg] \\
+&\approx \exp \bigg[-yx^\alpha_k \bigg((1-\epsilon)x^{-(\alpha_k - 1)}\bigg)^2/3\bigg] \\
+&= \exp \bigg[-y (1-\epsilon)^2 x^{-(\alpha_k-2)}/3\bigg]
+\end{align*}
+
+Now, let $y = \frac{4}{\sqrt{2}} \cdot 2 \cdot 3 \cdot (1-\epsilon)^2 \ln{(nk)} \cdot k$, then
+
+\begin{align*}
+&\int_{3}^\infty (nk)^{2k \alpha}\cdot \ln{(nk)^{2k}} \Pr(\alpha_k) d\alpha_k \\
+= &\int_{3}^\infty (nk)^{2k \alpha} \ln{(nk)^{2k}} \exp \bigg[-y x^{-\alpha_k + 2} \cdot (1-\epsilon)^2/3 \bigg] d\alpha_k \\
+= &\int_{3}^\infty (nk)^{2k \alpha} \ln{(nk)^{2k}} \exp \bigg[-\ln{nk} \cdot k \bigg(\frac{1}{(1-\epsilon)^2}\bigg) \cdot \frac{4}{\sqrt{2}} \cdot 6x^{-\alpha_k + 2} \frac{(1-\epsilon)^2}{3} \bigg] d\alpha_k \\
+= &\int_{3}^\infty (nk)^{2k \alpha_k} \ln{(nk)^{2k}} (nk)^{-k(\frac{4}{\sqrt{2}} \cdot 2x^{-\alpha_k + 2})} d\alpha_k \\
+= &\int_{3}^\infty (nk)^{2 k(\alpha_k - \frac{4}{\sqrt{2}} \cdot \frac{1}{x^{\alpha-2}})} \ln{(nk)}^{2k}  d\alpha_k \hspace{25pt} \text{We may non-problematically choose } x < \frac{1}{\sqrt{2}} \text{(See section on choosing x)} \\
+\leq &\int_{3}^\infty (nk)^{-2k \alpha_k} \ln{(nk)^{2k}} d\alpha_k \\
+\leq &\frac{1}{(nk)^{6k}} 
+\end{align*}
+\end{proof}
+
+So clearly for $\alpha_k \geq 3$, we can disregard the possibility that a cut of size $\alpha \lambda_k$ is disconnected the most.
+
+\begin{theorem}
+For $\alpha_k < 3$, the probability that there exists a cut of size $\alpha_k$  such that $Z(\alpha_k) > (1+\epsilon) E[Z(\alpha)]$ is minimal. 
+\end{theorem}
+
+\begin{proof}
+Let $y = k \cdot \frac{6 \ln(nk)}{x^3 \epsilon^2}$. Define $\text{Pr}_1(\alpha_k) = \Pr(Z(\alpha_k) > (1+\epsilon) E[Z(\alpha_k)])$
+
+Using the logic from above, the probability the theorem holds for all $\alpha_k < 3$ is given by $\int_{1}^3 \text{Pr}_1(\alpha_k) \frac{dF}{d \alpha_k} d\alpha_k$
+
+\begin{align*}
+\text{Pr}_1(\alpha_k) = \Pr(z > \mu(1 + \epsilon)) \leq \exp \bigg[ -\mu \frac{\epsilon^2}{3}\bigg] = \exp \bigg[-y x^{\alpha_k} \cdot \frac{\epsilon^2}{3} \bigg]
+\end{align*}
+
+where the inequality follows from a Chernoff Bound. Now taking the integral, and plugging in for $y$ and $\frac{dF}{d \alpha_k}$, we get a value less than $\frac{1}{n}$.
+
+\begin{align*}
+\int_{1}^3 \text{Pr}_1(\alpha_k) \frac{dF}{d \alpha_k} d\alpha_k &= \int_{1}^3 \exp \bigg[-y x^\alpha \cdot \frac{\epsilon^2}{3} \bigg] \frac{dF}{d \alpha} d\alpha \\
+&= \int_{1}^{3} \exp \bigg[-k \frac{3 \cdot 6 \ln (nk)}{x^3 \epsilon^2} \cdot x^\alpha \cdot \frac{\epsilon^2}{3}\bigg] \ln(nk)^{2k} d\alpha_k \\
+&\leq \int_{1}^3 (\exp[\ln(nk)])^{-6\cdot k} \ln(nk)^{2k} d\alpha \\
+&\leq \int_{1}^3 (nk)^{-2 k \alpha} \ln(nk)^{2k} d\alpha_k \\
+&\leq \int_{1}^\infty (nk)^{-2k \alpha} \ln(nk)^{2k} d\alpha_k \\
+&\leq \frac{1}{n}
+\end{align*}
+
+where the second to last inequality stems from the fact that \newline $(nk)^{-2k \alpha} \ln(nk)^{2k}  > 0$.
+
+\end{proof}
+
+\begin{theorem}
+With high probability, the cut which is disconnected most frequently will have a cut size within $(1+\epsilon)$ of the true minimal k-cut $\lambda_k$. Let $y = k \cdot \frac{6 \ln(nk)}{x^3 (\epsilon/2)^2}$, and let $x \leq \frac{1}{e}$.
+\end{theorem}
+
+\begin{proof}
+By theorem 1 we can ignore the case when $\alpha_k \geq 3$. For $\alpha_k < 3$, we know from theorem 2 that it's highly probable that $Z(\alpha_k) < (1+\frac{\epsilon}{2})yx^{\alpha_k}$ (we divide $\epsilon$ by $2$ based on our choice for $y$).
+Similarly, we know that $Z(1_k) > (1-\frac{\epsilon}{2}) yx$ with high probability. Further, if $Z(\alpha_k) > Z(1_k)$, then it's highly probable that $yx^{\alpha_k} > (1-\epsilon) yx$, so solving for $\alpha_k$ we get $\alpha_k = 1 + \frac{\ln(1-\epsilon)}{\ln(x)}$. Substituting in for $x = \frac{1}{e}$ we see that $\alpha_k = 1 - \ln(1 - \epsilon) \approx 1+\epsilon$. Note that for lower values of $x$ the approximation is closer to $1$.
+\end{proof}
+
+\section{Run Time Analysis}
+
+For $k \leq \log_k(mk!)$, we perform binary search such that the number of connected components is within $[k, \log_k(mk!)]$ a constant proportion of the time. We require $\log(m)$ iterations to find such a $p$, where each iteration involves a connected components analysis which is $O(m)$. Therefore, the cost of binary search is $O(m \log(m)) = O(m \log(n))$. Once we have this $p$, we must sample sub-graphs $y$ times, where $y = \log(nk) \cdot \frac{6k}{\epsilon^2}$. Each sampling requires an $O(m)$ connected component analysis, therefore the cost of the entire algorithm is $O(\frac{km \log(n)}{\epsilon^2})$.
+
+Enumerating all disconnected $k$-cuts in this case is $O(\frac{k^{\text{\# of connected components}}}{k!})$, which through our force of $p$ is forced to be $O(\frac{k^{\log_k(mk!)}}{k!}) = O(m)$. Repeating this $y$ times is also $O(\frac{km \log(n)}{\epsilon^2})$. This represents the total run time for our algorithm, since once all $k$-cuts are enumerated, we must simply count the one which occurs the most, and this is a $(1+\epsilon)$ approximation of the true minimal $k$-cut.
+
+For $k > \log_k(mk!)$, enumeration bottlenecks the speed of the algorithm. We seek to find a $p$ such that a constant proportion of the time, the number of connected components is $O(k)$. Therefore, the enumeration simply takes $O(\frac{k^k}{k!})$. We still perform $y$ sampling steps, which leads the total run time to be $O(\frac{k^k}{k!} \frac{k \log(n)}{\epsilon^2})$.
+
+Notice this could be made to be an exact algorithm by setting $\epsilon < \frac{1}{\lambda_k}$. Although this algorithm is exponential in $k$, it is polynomial in $n$. Moreover, our approximation is more accurate. Further, the process is embarassingly parallel and can be distributed across machines.
+
+\end{document}
