@@ -186,4 +186,42 @@ For $k > \log_k(mk!)$, enumeration bottlenecks the speed of the algorithm. We se
 
 Notice this could be made to be an exact algorithm by setting $\epsilon < \frac{1}{\lambda_k}$. Although this algorithm is exponential in $k$, it is polynomial in $n$. Moreover, our approximation is more accurate. Further, the process is embarassingly parallel and can be distributed across machines.
 
+\RestyleAlgo{boxruled}
+\LinesNumbered
+\begin{algorithm}[H]
+\caption{Binary Search}
+Set $p_{\text{min}} \leftarrow \frac{1}{\delta}$ \\
+Set $p_{\text{max}} \leftarrow 1$ \\
+\While{true} {
+  Set $p \leftarrow (p_{\text{min}} + p_{\text{max}})/2$ \\
+  Generate $\log n$ sub-graphs, sampling each edge with probability   $p$. \\
+  \For{each sub-graph} {
+    run connected components analysis
+  }
+  estimate $\hat{\theta}$, $\hat{\theta}_{\downarrow}$, and $\hat{\theta}_{\uparrow}$ \\
+  \uIf{$\hat{\theta} \geq x$} {
+    return $p$.
+  }
+  \uElseIf{$\hat{\theta}_{\downarrow} > \hat{\theta}_{\uparrow}$} {
+    let $p_{\text{min}} = p$.
+  }
+  \ElseIf{$\hat{\theta}_{\uparrow} > \hat{\theta}_{\downarrow}$} {
+    let $p_{\text{max}} = p$.
+  }
+}
+\end{algorithm}
+
+\RestyleAlgo{boxruled}
+\LinesNumbered
+\begin{algorithm}[H]
+\caption{Minimal $k$-cut}
+Binary Search to find $p$ \\
+Sample $\log(n)/\epsilon^2$ sub-graphs \\
+Enumerate all $\{\overset{\log_k(mk!)}{k} \}$ disconnected cuts \\
+Return most often disconnected cut
+\end{algorithm}
+
+
+
+
 \end{document}
