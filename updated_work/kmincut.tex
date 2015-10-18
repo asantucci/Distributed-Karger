@@ -1,17 +1,56 @@
-\documentclass[12pt]{article} 
+% minimal-k-cut.tex
+% Minimal K Cut Approximation Algorithm
+% Authors: Eric Lax, Andreas Santucci, Reza Zadeh
+% Revisions:  8 August 2015
+
+% TODO:
+% -----
+% 1. Use of algorithm2e/amsmath/amsfonts packages?
+% 2. Creating custom command for stirling numbers?
+
+\documentclass{acm_proc_article-sp} 
 
 \usepackage{algorithm2e}
-\usepackage{amsthm}
-\usepackage{amsmath}
-\usepackage{amsfonts}
-\usepackage[backref]{hyperref}
+%\usepackage{amsthm}
+%\usepackage{amsmath}
+%\usepackage{amsfonts}
+%\usepackage[backref]{hyperref}
 \newtheorem{theorem}{Theorem}
+
+\DeclareRobustCommand{\stirling}{\genfrac\{\}{0pt}{}}
 
 \begin{document} 
 
 \title{\textbf{K Min Cut Approximation}}
-\author{Eric Lax, Andreas Santucci}
+\subtitle{[Extended Abstract]}
+\numberofauthors{3}
+\author{
+\alignauthor
+Eric Lax \\
+  \affaddr{Department of Statistics}\\
+  \affaddr{390 Serra Mall} \\
+  \affaddr{Stanford, CA 94305}\\
+  \email{elax13@stanford.edu}
+\alignauthor
+Andreas Santucci \\
+  \affaddr{Institute for Computational and Mathematical Engineering} \\
+  \affaddr{475 Via Ortega} \\
+  \affaddr{Stanford, CA 94305} \\
+  \email{santucci@stanford.edu}
+%\alignauthor
+%Reza Zadeh \\
+%  \affaddr{Institute for Computational and Mathematical Engineering} %\\
+%  \affaddr{475 Via Ortega} \\
+%  \affaddr{Stanford, CA 94305} \\
+%  \email{rezab@stanford.edu}
+}
 \maketitle
+
+\begin{abstract}
+We set out to solve the problem of finding a minimal $k$-cut of a large, un-weighted and un-directed graph $G$. Our algorithms are designed to work in the event that the number of edges cannot fit on a single machine, but the number of nodes can. Our approach relies on the idea that when sampling edges from a graph, the probability that all the edges which cross a cut are removed is directly proportional to the cut size. We further show that sampling edges with the ``right'' probability, $p$, generating $k \log(n)/\epsilon^2$ sub-graphs, the cut which is most often disconnected will be a $(1+\epsilon)$ approximation of the minimal $k$-cut. This translates into a direct algorithm if $\epsilon = 1/\lambda_k$, where $\lambda_k$ denotes the minimal $k$-cut.
+
+Since the process of generating a sub-graph and counting disconnected cuts does not depend on other sub-graphs, the process is embarrassingly parallel. Therefore, the algorithm may be distributed across multiple machines. We show that the run time of the algorithm is $O(\frac{mk \log(n)}{B \epsilon^2})$, where $B$ denotes the number of machines.
+\end{abstract}
 
 Our algorithm for minimal $k$-cut follows the same form as our approximation algorithm for min-cut. We note that if we sample each edge in an un-weighted graph with probability $p$, the probability that a cut is disconnected, meaning that no edges which span the cut exist the sub-graph, occurs with probability $(1-p)^{\text{cut size}}$ Let $\alpha \lambda_k$ denote the cut size where $\lambda_k$ is the minimal $k$-cut. Further, let an $\alpha_k$ cut refer to a $k$-cut whose size is less than or equal to $\alpha \lambda_k$. 
 
@@ -19,7 +58,7 @@ Notice the smaller the cut, the larger the probability that it is disconnected. 
 
 Our algorithm proceeds as follows. Start with a binary search for a $p$ such that when sampling sub-graphs with $p$, the number of connected components are between $[k, \log_k(n k!)]$ a constant proportion of the time. With this $p$, sample $O(\log(n)/\epsilon^2)$ sub-graphs. For each sub-graph, count all disconnected $k$-cuts. Return the $k$-cut which is disconnected the most.
 
-\section{Binary Search} Enumerating all $k$-cuts given a sub-graph with $\xi$ connected components costs $\left \{ \overset{\xi}{k} \right \} = \frac{1}{k!} \sum_{j=0}^k (-1)^{k-j} \binom{k}{j} j^\xi$, which denotes the Stirling number of the second kind. For a fixed value of $k$, the asymptotic value of the Stirling numbers of the second kind is given by $\frac{k^\xi}{k!}$. Since we want the enumeration cost to $O(m)$, we require the number of connected components to satisfy
+\section{Binary Search} Enumerating all $k$-cuts given a sub-graph with $\xi$ connected components costs $ \stirling{\xi}{k} = \frac{1}{k!} \sum_{j=0}^k (-1)^{k-j} \binom{k}{j} j^\xi$, which denotes the Stirling number of the second kind. For a fixed value of $k$, the asymptotic value of the Stirling numbers of the second kind is given by $\frac{k^\xi}{k!}$. Since we want the enumeration cost to $O(m)$, we require the number of connected components to satisfy
 
 \begin{align*}
 \frac{k^\xi}{k!} &\leq m \\
@@ -56,15 +95,15 @@ Notice that the average degree size is at least $\frac{\lambda_k}{k-1}$, because
 
 The probability that an edge contained within an $\alpha k$-cut is not contracted over when sampling down to $2 \alpha k$ vertices is simply 
 
-\[
-\left (1 - \frac{2 \alpha k}{n} \right) \left(1 - \frac{2 \alpha k}{n-1} \right) \ldots \left( 1 - \frac{2 \alpha k}{2 \alpha k + 1}\right) = \binom{n}{2 \alpha k}^{-1} \approx n^{2 \alpha k}
-\]
+\begin{align*}
+\left (1 - \frac{2 \alpha k}{n} \right) \left(1 - \frac{2 \alpha k}{n-1} \right) \ldots \left( 1 - \frac{2 \alpha k}{2 \alpha k + 1}\right) \\ = \binom{n}{2 \alpha k}^{-1} \approx n^{2 \alpha k}
+\end{align*}
 
 We can sample down to $k$ vertices simply by partitioning the 
 $2 \alpha k$ remaining vertices into $k$ groups. The number of ways to do this is given by the Stirling number of the second kind. The probability that an edge within the $\alpha k$ cut is contracted during this stage is given by
 
 \[
-\frac{1}{ \left \{ \overset{2 \alpha k }{k} \right \}} \approx \left( \frac{k^{2 \alpha k}}{k!} \right)^{-1}
+\frac{1}{ \stirling{2 \alpha k }{k} } \approx \left( \frac{k^{2 \alpha k}}{k!} \right)^{-1}
 \]
 
 Following this contraction algorithm, the probability an edge contained within the $\alpha k$ cut remains when there are only $k$ vertices left is given by
@@ -126,15 +165,15 @@ Since it is highly unlikely that $Z(1_k)$ is less than $(1-\epsilon)xy$, then $\
 
 Now, let $y = \frac{4}{\sqrt{2}} \cdot 2 \cdot 3 \cdot (1-\epsilon)^2 \ln{(nk)} \cdot k$, then
 
-\begin{align*}
-&\int_{3}^\infty (nk)^{2k \alpha}\cdot \ln{(nk)^{2k}} \Pr(\alpha_k) d\alpha_k \\
+\begin{alignat*}{3}
+&\int_{3}^\infty (nk)^{2k \alpha} \ln{(nk)^{2k}} \Pr(\alpha_k) d\alpha_k \\
 = &\int_{3}^\infty (nk)^{2k \alpha} \ln{(nk)^{2k}} \exp \bigg[-y x^{-\alpha_k + 2} \cdot (1-\epsilon)^2/3 \bigg] d\alpha_k \\
-= &\int_{3}^\infty (nk)^{2k \alpha} \ln{(nk)^{2k}} \exp \bigg[-\ln{nk} \cdot k \bigg(\frac{1}{(1-\epsilon)^2}\bigg) \cdot \frac{4}{\sqrt{2}} \cdot 6x^{-\alpha_k + 2} \frac{(1-\epsilon)^2}{3} \bigg] d\alpha_k \\
+= &\int_{3}^\infty (nk)^{2k \alpha} \ln{(nk)^{2k}} \cdot \\ &\exp \bigg[-\ln{nk} \cdot k \bigg(\frac{1}{(1-\epsilon)^2}\bigg) \cdot \frac{4}{\sqrt{2}} \cdot 6x^{-\alpha_k + 2} \frac{(1-\epsilon)^2}{3} \bigg] d\alpha_k \\
 = &\int_{3}^\infty (nk)^{2k \alpha_k} \ln{(nk)^{2k}} (nk)^{-k(\frac{4}{\sqrt{2}} \cdot 2x^{-\alpha_k + 2})} d\alpha_k \\
-= &\int_{3}^\infty (nk)^{2 k(\alpha_k - \frac{4}{\sqrt{2}} \cdot \frac{1}{x^{\alpha-2}})} \ln{(nk)}^{2k}  d\alpha_k \hspace{25pt} \text{We may non-problematically choose } x < \frac{1}{\sqrt{2}} \text{(See section on choosing x)} \\
+= &\int_{3}^\infty (nk)^{2 k(\alpha_k - \frac{4}{\sqrt{2}} \cdot \frac{1}{x^{\alpha-2}})} \ln{(nk)}^{2k}  d\alpha_k \\
 \leq &\int_{3}^\infty (nk)^{-2k \alpha_k} \ln{(nk)^{2k}} d\alpha_k \\
 \leq &\frac{1}{(nk)^{6k}} 
-\end{align*}
+\end{alignat*}
 \end{proof}
 
 So clearly for $\alpha_k \geq 3$, we can disregard the possibility that a cut of size $\alpha \lambda_k$ is disconnected the most.
@@ -180,15 +219,15 @@ Similarly, we know that $Z(1_k) > (1-\frac{\epsilon}{2}) yx$ with high probabili
 
 For $k \leq \log_k(mk!)$, we perform binary search such that the number of connected components is within $[k, \log_k(mk!)]$ a constant proportion of the time. We require $\log(m)$ iterations to find such a $p$, where each iteration involves a connected components analysis which is $O(m)$. Therefore, the cost of binary search is $O(m \log(m)) = O(m \log(n))$. Once we have this $p$, we must sample sub-graphs $y$ times, where $y = \log(nk) \cdot \frac{6k}{\epsilon^2}$. Each sampling requires an $O(m)$ connected component analysis, therefore the cost of the entire algorithm is $O(\frac{km \log(n)}{\epsilon^2})$.
 
-Enumerating all disconnected $k$-cuts in this case is $O(\frac{k^{\text{\# of connected components}}}{k!})$, which through our force of $p$ is forced to be $O(\frac{k^{\log_k(mk!)}}{k!}) = O(m)$. Repeating this $y$ times is also $O(\frac{km \log(n)}{\epsilon^2})$. This represents the total run time for our algorithm, since once all $k$-cuts are enumerated, we must simply count the one which occurs the most, and this is a $(1+\epsilon)$ approximation of the true minimal $k$-cut.
+Enumerating all disconnected $k$-cuts in this case is \\ $O(\frac{k^{\text{\# of connected components}}}{k!})$, which through our choice of $p$ is forced to be $O(\frac{k^{\log_k(mk!)}}{k!}) = O(m)$. Repeating this $y$ times is also $O(\frac{km \log(n)}{\epsilon^2})$. This represents the total run time for our algorithm, since once all $k$-cuts are enumerated, we must simply count the one which occurs the most, and this is a $(1+\epsilon)$ approximation of the true minimal $k$-cut.
 
-For $k > \log_k(mk!)$, enumeration bottlenecks the speed of the algorithm. We seek to find a $p$ such that a constant proportion of the time, the number of connected components is $O(k)$. Therefore, the enumeration simply takes $O(\frac{k^k}{k!})$. We still perform $y$ sampling steps, which leads the total run time to be $O(\frac{k^k}{k!} \frac{k \log(n)}{\epsilon^2})$.
+For $k > \log_k(mk!)$, enumeration bottlenecks the speed of the algorithm. We seek to find a $p$ such that a constant proportion of the time, the number of connected components is $O(k)$. Therefore, the enumeration simply takes $O(\frac{k^k}{k!})$. We still perform $y$ sampling steps, which leads the total run time to be $O(\frac{k^k}{k!} \frac{m k \log(n)}{\epsilon^2})$.
 
 Notice this could be made to be an exact algorithm by setting $\epsilon < \frac{1}{\lambda_k}$. Although this algorithm is exponential in $k$, it is polynomial in $n$. Moreover, our approximation is more accurate. Further, the process is embarassingly parallel and can be distributed across machines.
 
 \RestyleAlgo{boxruled}
 \LinesNumbered
-\begin{algorithm}[H]
+\begin{algorithm}
 \caption{Binary Search}
 Set $p_{\text{min}} \leftarrow \frac{1}{\delta}$ \\
 Set $p_{\text{max}} \leftarrow 1$ \\
@@ -213,15 +252,38 @@ Set $p_{\text{max}} \leftarrow 1$ \\
 
 \RestyleAlgo{boxruled}
 \LinesNumbered
-\begin{algorithm}[H]
+\begin{algorithm}
 \caption{Minimal $k$-cut}
 Binary Search to find $p$ \\
 Sample $\log(n)/\epsilon^2$ sub-graphs \\
-Enumerate all $\{\overset{\log_k(mk!)}{k} \}$ disconnected cuts \\
+Enumerate all $\stirling{\log_k(mk!)}{k}$ disconnected cuts \\
 Return most often disconnected cut
 \end{algorithm}
 
+\section{Weighted Graphs} For a weighted graph, we assume integer weights. In our sampling process, we will sample each edge with probability proportional to its weight. In particular, set
 
+\[
+p^*_i = \Pr(\text{sample edge } i, \text{ which has weight } w_i) = 1 - (1-p)^{w_i} 
+\]
 
+for fixed $p$. Consider a cut of size $\psi = \sum_{i=1}^j w_i$, where edges in the set $\{1, 2, \ldots, j\}$ cross the cut. The probability that a cut of this size is disconnected when sampling edges is given by
+
+\begin{align*}
+\Pr(\text{Cut of size } \psi \text{ is disconnected}) = \prod_{i=1}^j (1 - p_i^*) = \prod_{i=1}^j (1 - (1 - (1-p)^{w_i})) = \prod_{i=1}^j (1-p)^{w_i} = (1-p)^{\sum_{i=1}^j w_i}.
+\end{align*}
+
+Let $x$ denote the probability that the min-cut is disconnected, then
+
+\[
+x = (1-p)^{\lambda_k}
+\]
+
+So an $\alpha$-cut is disconnected with probability
+
+\[
+x^\alpha = (1-p)^{\alpha \lambda_k}
+\]
+
+Since the probability that a cut is disconnected is proportional to its cut size, in exactly the same manner as before, then our results above apply to weighted graphs. The run-times remain the same.
 
 \end{document}
